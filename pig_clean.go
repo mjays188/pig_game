@@ -2,10 +2,8 @@ package main
 
 import (
     "fmt"
-    //"reflect"
     "os"
     "strconv"
-    //"unicode"
     "math/rand"
     "regexp"
     "errors"
@@ -43,19 +41,19 @@ type Turn struct {
 }
 
 // func to simulate rolling dice and return the results
-func rollDice() int {
+func RollDice() int {
     rand.Seed(time.Now().UnixNano())
     result := rand.Intn(6) + 1
     return result
 }
 
 // method to simulate a player's turn
-func (t *Turn) simulateTurn(threshold int) {
+func (t *Turn) SimulateTurn(threshold int) {
     // keep rolling a dice
     t.score = 0
     t.dieRollResults = []int{}
     for {
-        rollResult := rollDice()
+        rollResult := RollDice()
         t.dieRollResults = append(t.dieRollResults, rollResult)
         
         // if the dice rolls 1, turn is complete and score is reset to 0, it's next player's turn now
@@ -94,7 +92,7 @@ func (g Game) String() string {
 
 // method to simulate a game
 // tsp1, tsp2 - threshold of strategy for player 1/2
-func (g *Game) simulateGame(tsp1, tsp2 int) {
+func (g *Game) SimulateGame(tsp1, tsp2 int) {
     g.p1Score = 0
     g.p2Score = 0
     g.p1Turns = []Turn{}
@@ -104,7 +102,7 @@ func (g *Game) simulateGame(tsp1, tsp2 int) {
     for {
         // player 1's turn
         var p1Turn Turn
-        p1Turn.simulateTurn(tsp1)
+        p1Turn.SimulateTurn(tsp1)
         g.p1Score += p1Turn.score
         g.p1Turns = append(g.p1Turns, p1Turn)
 
@@ -115,7 +113,7 @@ func (g *Game) simulateGame(tsp1, tsp2 int) {
         }
 
         var p2Turn = new(Turn)
-        p2Turn.simulateTurn(tsp2)
+        p2Turn.SimulateTurn(tsp2)
         g.p2Score += p2Turn.score
         g.p2Turns = append(g.p2Turns, *p2Turn)
 
@@ -145,8 +143,7 @@ func (e Event) String() string {
 
 // function to simulate an Event a set of 10 games
 // tsp1, tsp2 - threshold of strategy for player 1/2
-
-func (e *Event) simulateEvent(tsp1, tsp2 int) {
+func (e *Event) SimulateEvent(tsp1, tsp2 int) {
     e.games = [NO_OF_GAMES_IN_ONE_EVENT]Game{}
     e.p1wins = 0
     e.p2wins = 0
@@ -156,7 +153,7 @@ func (e *Event) simulateEvent(tsp1, tsp2 int) {
     // for each event, we simulate set of 10 games
     for i:=1; i<=10; i++ {
         var g Game
-        g.simulateGame(tsp1, tsp2)
+        g.SimulateGame(tsp1, tsp2)
         e.games[i-1] = g
         if g.winner == PLAYER1 {
             e.p1wins += 1
@@ -166,7 +163,7 @@ func (e *Event) simulateEvent(tsp1, tsp2 int) {
     }
 
     // based on the results, choose winner
-    e.winner = getWinnerFromScores(e.p1wins, e.p2wins)
+    e.winner = GetWinnerFromScores(e.p1wins, e.p2wins)
 }
 
 // series is a set of events along with results
@@ -179,7 +176,7 @@ type Series struct {
 }
 
 // simulate a series
-func (s *Series)simulateSeries(p1Strategies, p2Strategies []int) {
+func (s *Series)SimulateSeries(p1Strategies, p2Strategies []int) {
     // series is a set of events
     // for each event, we pick unequal p1StrategyThreshold and p2StrategyThreshold from given parameters
     // and update s
@@ -193,17 +190,21 @@ func (s *Series)simulateSeries(p1Strategies, p2Strategies []int) {
     // looping through all strategy threshold of player1
     for _, pst1 := range p1Strategies {
         // having an event against all the strategy threshold of player2
+        i := 0
         for _, pst2 := range p2Strategies {
             if pst1 != pst2 {
                 // simulating the event with given strategy threshold
                 var e Event
-                e.simulateEvent(pst1, pst2)
+                e.SimulateEvent(pst1, pst2)
                 _, ok := s.tsp1ToE[pst1]
-                if ok {
-                   s.tsp1ToE[pst1] = append(s.tsp1ToE[pst1], e) 
-                } else {
-                    s.tsp1ToE[pst1] = []Event{e}
+                if !ok {
+                    lc := len(p2Strategies)
+                    if pst1 >= s.p2Strategies[0] && pst1 <= s.p2Strategies[len(s.p2Strategies)-1]{
+                        lc--
+                    }
+                    s.tsp1ToE[pst1] = make([]Event, lc, lc) 
                 }
+                s.tsp1ToE[pst1][i] = e
                 if e.winner == PLAYER1 {
                     s.p1Wins += 1
                 } else if e.winner == PLAYER2 {
@@ -211,9 +212,10 @@ func (s *Series)simulateSeries(p1Strategies, p2Strategies []int) {
                 } else {
                     s.drawMatches += 1
                 } 
+            i++
             }
         }
-        resultString, err := s.getEventResultTsp1(pst1)
+        resultString, err := s.GetEventResultTsp1(pst1)
         if err != nil {
             fmt.Printf("Error getting results for strategy having %d threshold\n")
         }
@@ -221,11 +223,11 @@ func (s *Series)simulateSeries(p1Strategies, p2Strategies []int) {
     }
 
     // decide the winner
-    s.winner = getWinnerFromScores(s.p1Wins, s.p2Wins)
+    s.winner = GetWinnerFromScores(s.p1Wins, s.p2Wins)
 }
 
 // get winner from scores
-func getWinnerFromScores(p1Score, p2Score int) string {
+func GetWinnerFromScores(p1Score, p2Score int) string {
     var winner string
     if p1Score > p2Score {
         winner = PLAYER1
@@ -335,7 +337,7 @@ func main() {
         // story 1
         // simulate an event 
         var g = new(Event)
-        g.simulateEvent(t1[0], t2[0])
+        g.SimulateEvent(t1[0], t2[0])
         fmt.Println(*g)
 
     } else if(isStrategy1Num && !isStrategy2Num) {
@@ -348,7 +350,7 @@ func main() {
             j++
         }
         fmt.Println("Simulation has started, waiting for the results...")
-        s.simulateSeries(t1, p2Strategies)
+        s.SimulateSeries(t1, p2Strategies)
         // fmt.Println(*s)
         // show results
         for _, v := range s.tsp1ToE[t1[0]] {
@@ -376,8 +378,7 @@ func main() {
         }
         fmt.Println("Simulation has started, waiting for the results...")
         // simulate along with showing result for each event as in when it completes
-        s.simulateSeries(p1Strategies, p2Strategies)
-        
+        s.SimulateSeries(p1Strategies, p2Strategies)
     }
     // Record the end time
     endTime := time.Now()
@@ -399,7 +400,7 @@ func main() {
     Result: Wins, losses staying at k =  99: 225/990 (22.7%), 765/990 (77.3%)
     Result: Wins, losses staying at k = 100: 210/990 (21.2%), 780/990 (78.8%)
 */
-func (s *Series)getEventResultTsp1(tsp1 int) (string, error) {
+func (s *Series)GetEventResultTsp1(tsp1 int) (string, error) {
     events, ok := s.tsp1ToE[tsp1]
     var resultString = ""
     if !ok {
@@ -407,7 +408,9 @@ func (s *Series)getEventResultTsp1(tsp1 int) (string, error) {
     }
     // loop over all the events and check how many games were won by each player
     p1Wins, p2Wins, draws := 0,0,0
-    totalGames := len(events)*10
+
+    totalGames := len(events) * 10
+
     for _, e := range events {
         for _, game := range e.games {
             if game.winner == PLAYER1 {
